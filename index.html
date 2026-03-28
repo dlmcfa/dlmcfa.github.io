@@ -84,15 +84,13 @@
     const _supabase = supabase.createClient("https://ykymzuaobitdhoyyqmxp.supabase.co", "sb_publishable_mU8Ivr3GpGOjugg2TxK5Jw_FCRxbtpS");
     const MASTER_CODE = "2026";
     let db = { albumLyrics: {}, customScraps: [], deletedInitials: [], wishes: [], editableAlbums: {} };
-    
-    // 随机署名库
     const randomNames = ["Soul Ghost", "Blue Mood", "Archive Traveler", "Midnight Listener", "Destiny Finder", "Echo Walker"];
 
     const initialAlbums = [
       { id:1, name: 'EndSerenading (Mineral)', img: 'https://i.ibb.co/7dM4QCx4/IMG-6823.jpg', songs: 'Love Letter / Palisade / Gjs' },
       { id:2, name: '我们的灵魂乐 (透明杂志)', img: 'https://i.ibb.co/pB7Wvb7D/IMG-6824.jpg', songs: '永远的等待 / 少女 / 我们的灵魂乐' },
       { id:3, name: '亲爱的…我还不知道 (张悬)', img: 'https://i.ibb.co/pBHns4Yd/IMG-6821.jpg', songs: '关于我爱你 / 信任的样子 / 并不' },
-      { id:4, name: '时间的歌 (陈绮贞)', img: 'https://i.ibb.co/whDZddfZ/IMG-6822.jpg', songs: '序曲 / 涟漪 / 柏拉图式的爱情' },
+      { id:4, name: '时间的歌 (陈绮贞)', img: 'https://i.ibb.co/whDZddfZ/IMG-6822.jpg', songs: '序曲 / 涟漪 / 柏拉圖式的愛情' },
       { id:5, name: '的士房间 (薄荷叶)', img: 'https://i.ibb.co/mFGz0qmx/IMG-6828.jpg', songs: '的士房间 / 破坏 / 19岁' }
     ];
 
@@ -103,14 +101,19 @@
       document.getElementById('syncStatus').innerText = "Cloud: Connected";
     }
 
+    // 核心驗證函數
     const checkAuth = () => {
-      if(localStorage.getItem('is_admin') === MASTER_CODE) return true;
-      const pw = prompt("Identity Verification / 请输入暗号:");
-      if(pw === MASTER_CODE) { localStorage.setItem('is_admin', MASTER_CODE); return true; }
+      const currentStatus = localStorage.getItem('is_admin');
+      if(currentStatus === MASTER_CODE) return true;
+      const pw = prompt("Identity Verification / 身份驗證:");
+      if(pw === MASTER_CODE) { 
+        localStorage.setItem('is_admin', MASTER_CODE); 
+        return true; 
+      }
+      alert("權限不足！");
       return false;
     };
 
-    // 只有主人才能打开的弹窗
     function openModalWithAuth(mode) {
       if(checkAuth()) openModal(mode);
     }
@@ -183,9 +186,9 @@
     function renderScraps() {
       document.getElementById('scrapbook').querySelectorAll('.scrap-item').forEach(e=>e.remove());
       const initialScraps = [
-        { id:'s1', type:'text', content:'每次出门都幻想自己会阅读。', x:80, y:200 },
+        { id:'s1', type:'text', content:'每次出門都幻想自己會閱讀。', x:80, y:200 },
         { id:'s5', type:'img', content:'https://i.ibb.co/jZvfc09z/IMG-5712.jpg', x:650, y:350 },
-        { id:'s3', type:'text', content:'现在的每一天都只是我的幻觉。', x:120, y:500 },
+        { id:'s3', type:'text', content:'現在的每一天都只是我的幻覺。', x:120, y:500 },
         { id:'s7', type:'img', content:'https://i.ibb.co/PskfMxGg/IMG-5116.jpg', x:750, y:850 }
       ];
       initialScraps.forEach(s => { if(!db.deletedInitials.includes(s.id)) renderOne(s, true); });
@@ -212,6 +215,12 @@
 
     async function saveContent() {
       const val = document.getElementById('modalInput').value; if(!val) return;
+      
+      // 關鍵修復：如果是留言以外的功能，再次驗證暗號
+      if(activeMode !== 'wish') {
+          if(!checkAuth()) return; 
+      }
+
       if(activeMode === 'wish') {
         const randomName = randomNames[Math.floor(Math.random() * randomNames.length)];
         db.wishes.push({ content: val, name: randomName, time: new Date().toLocaleString() });
