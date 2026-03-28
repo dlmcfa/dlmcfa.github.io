@@ -13,14 +13,14 @@
     .album-vertical-list { height: 650px; overflow-y: auto; scrollbar-width: none; perspective: 1000px; padding: 40px 0; }
     .album-item { cursor: pointer; transition: 0.6s cubic-bezier(0.23, 1, 0.32, 1); filter: grayscale(100%); opacity: 0.2; margin-bottom: 40px; }
     .album-item.active { filter: grayscale(0%); opacity: 1; transform: translateX(20px) scale(1.05) !important; box-shadow: 20px 20px 60px rgba(0,0,0,0.1); }
+    /* 核心修改：为可编辑封面增加光标样式 */
+    .album-item img { cursor: edit; }
     .album-detail-wrap::before { content: attr(data-index); position: absolute; top: -80px; right: -40px; font-size: 20rem; font-weight: 900; color: rgba(0,0,0,0.03); z-index: -1; pointer-events: none; }
     .scrapbook-section { position: relative; min-height: 160vh; width: 100%; border-top: 1px solid #eee; background: #fafafa; overflow: hidden; }
-    /* 核心修改：增加 z-index 过渡，点击浮起 */
     .scrap-item { position: absolute; transition: transform 0.3s, z-index 0.1s; z-index: 10; cursor: grab; }
     .scrap-item.active-grab { z-index: 100 !important; }
     .delete-mark { position: absolute; bottom: -10px; right: -10px; width: 22px; height: 22px; background: #000; color: #fff; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; z-index: 100; border: 2px solid #fff; }
     .scrap-item:hover .delete-mark { display: flex; }
-    /* 核心修改：可编辑文本的样式 */
     [contenteditable="true"] { border-bottom: 1px dashed rgba(0,0,0,0.2); outline: none; padding-bottom: 2px; transition: background 0.2s; }
     [contenteditable="true"]:hover { background: rgba(0,0,0,0.03); }
     [contenteditable="true"]:focus { border-bottom: 1px solid #000; background: rgba(0,0,0,0.05); }
@@ -45,14 +45,17 @@
   <section class="py-40 px-10 md:px-24 flex flex-col md:flex-row gap-20 items-center">
     <div class="w-full md:w-[40%] album-vertical-list" id="albumList"></div>
     <div class="flex-1 relative">
-      <div id="albumDetail" class="album-detail-wrap opacity-0 transition-opacity duration-500">
-        <h3 id="detailTitle" class="text-5xl font-black mb-2 tracking-tighter" ondblclick="makeEditable(this, 'albumName')"></h3>
-        <p id="detailSongs" class="text-xs opacity-30 mb-10 tracking-widest uppercase" ondblclick="makeEditable(this, 'albumSongs')"></p>
-        <div class="flex justify-between items-center border-b border-black mb-6 pb-2">
-          <span class="text-[10px] uppercase tracking-widest">Archive Lyrics</span>
-          <button onclick="openModal('albumLyric')" class="text-[10px] underline hover:font-bold">+ Add New</button>
+      <div id="albumDetail" class="album-detail-wrap opacity-0 transition-opacity duration-500 flex flex-col items-start gap-8">
+        <img id="detailCover" src="" class="w-40 shadow-2xl self-center md:self-start opacity-80 mb-6">
+        <div class="w-full">
+            <h3 id="detailTitle" class="text-5xl font-black mb-2 tracking-tighter" ondblclick="makeEditable(this, 'albumName')"></h3>
+            <p id="detailSongs" class="text-xs opacity-30 mb-10 tracking-widest uppercase" ondblclick="makeEditable(this, 'albumSongs')"></p>
+            <div class="flex justify-between items-center border-b border-black mb-6 pb-2">
+              <span class="text-[10px] uppercase tracking-widest">Archive Lyrics</span>
+              <button onclick="openModal('albumLyric')" class="text-[10px] underline hover:font-bold">+ Add New</button>
+            </div>
+            <div id="albumLyricContainer" class="space-y-6"></div>
         </div>
-        <div id="albumLyricContainer" class="space-y-6"></div>
       </div>
     </div>
   </section>
@@ -88,7 +91,7 @@
   <script>
     const _supabase = supabase.createClient("https://ykymzuaobitdhoyyqmxp.supabase.co", "sb_publishable_mU8Ivr3GpGOjugg2TxK5Jw_FCRxbtpS");
     const MASTER_CODE = "2026";
-    // 核心修改：增加了 editableAlbums 用于存储对专辑信息的自定义修改
+    // editableAlbums 用于存储对专辑信息的自定义修改（名字、歌曲、封面链接）
     let db = { albumLyrics: {}, customScraps: [], deletedInitials: [], wishes: [], editableAlbums: {} };
 
     const initialScraps = [
@@ -102,7 +105,8 @@
       { id:'s8', type:'img', content:'https://i.ibb.co/BVZJFbZB/IMG-1072.jpg', x:80, y:1200 }
     ];
 
-    const albums = [
+    // 核心修改：initialAlbums 仅作为备用，所有数据优先使用云端数据库
+    const initialAlbums = [
       { id:1, name: 'EndSerenading (Mineral)', img: 'https://i.ibb.co/7dM4QCx4/IMG-6823.jpg', songs: 'Love Letter / Palisade / Gjs' },
       { id:2, name: '我们的灵魂乐 (透明杂志)', img: 'https://i.ibb.co/pB7Wvb7D/IMG-6824.jpg', songs: '永远的等待 / 少女 / 我们的灵魂乐' },
       { id:3, name: '亲爱的…我还不知道 (张悬)', img: 'https://i.ibb.co/pBHns4Yd/IMG-6821.jpg', songs: '关于我爱你 / 信任的样子 / 并不' },
@@ -112,7 +116,6 @@
 
     async function load() {
       const { data } = await _supabase.from('archive_data').select('content').eq('id', 1).single();
-      // 核心修改：确保 editableAlbums 初始化
       if (data) { db = data.content; if(!db.editableAlbums) db.editableAlbums = {}; }
       renderAll();
       document.getElementById('syncStatus').innerText = "Cloud: Connected";
@@ -121,16 +124,46 @@
     function renderAll() {
       const listEl = document.getElementById('albumList');
       listEl.innerHTML = '';
-      albums.forEach((alb, idx) => {
+      initialAlbums.forEach((alb, idx) => {
+        // 核心修改：检查云端是否有对该专辑封面链接的自定义修改
+        const customData = db.editableAlbums[alb.id] || {};
+        const currentCover = customData.img || alb.img; // 优先使用云端封面
+
         const div = document.createElement('div');
-        div.className = `album-item ${alb.id===window.currentId?'active':''}`;
-        div.innerHTML = `<img src="${alb.img}" class="w-full shadow-lg">`;
-        div.onclick = () => switchAlbum(alb, div);
+        div.className = `album-item group relative ${alb.id===window.currentId?'active':''}`;
+        // 核心修改：左侧封面增加双击编辑封面链接的事件
+        div.innerHTML = `
+            <img src="${currentCover}" class="w-full shadow-lg" ondblclick="editAlbumCover(${alb.id})">
+            <div class="absolute inset-0 bg-black/50 text-white text-[8px] opacity-0 group-hover:opacity-100 flex items-center justify-center uppercase tracking-widest transition-opacity">Edit Cover (dblclick)</div>
+        `;
+        div.onclick = (e) => { 
+            // 只有点击图片本身（且不是双击时）才切换专辑
+            if(e.target.tagName === 'IMG' && e.detail === 1) switchAlbum(alb, div); 
+        };
         listEl.appendChild(div);
         if(idx===0 && !window.currentId) switchAlbum(alb, div);
       });
       renderScraps(); renderWishes(); renderLyrics();
     }
+
+    // 核心修改：编辑专辑封面的函数
+    window.editAlbumCover = async (albumId) => {
+        if(!checkAuth()) return; // 检查权限（输入 2026）
+
+        // 获取当前封面链接作为默认值
+        const currentData = db.editableAlbums[albumId] || {};
+        const initialAlb = initialAlbums.find(a => a.id === albumId);
+        const currentImg = currentData.img || initialAlb.img;
+
+        const newImgUrl = prompt("Paste new Image URL (e.g., https://i.ibb.co/...):", currentImg);
+        
+        if (newImgUrl && newImgUrl !== currentImg) {
+            if(!db.editableAlbums[albumId]) db.editableAlbums[albumId] = {};
+            db.editableAlbums[albumId].img = newImgUrl; // 保存新的封面链接
+            
+            await sync(); // 同步到云端
+        }
+    };
 
     function switchAlbum(alb, el) {
       document.querySelectorAll('.album-item').forEach(i => i.classList.remove('active'));
@@ -138,11 +171,15 @@
       const detail = document.getElementById('albumDetail');
       detail.style.opacity = 0; detail.setAttribute('data-index', '0' + alb.id);
       
-      // 核心修改：检查云端是否有对该专辑信息的自定义修改
+      // 检查云端是否有对该专辑信息的自定义修改
       const customData = db.editableAlbums[alb.id] || {};
       
       setTimeout(() => {
-        // 优先使用云端自定义内容
+        // 核心修改：优先使用云端封面大图链接
+        document.getElementById('detailCover').src = customData.img || alb.img;
+        document.getElementById('detailCover').style.display = document.getElementById('detailCover').src ? 'block' : 'none'; // 如果没有图片则隐藏
+        
+        // 优先使用云端自定义内容（专辑名和歌曲列表）
         document.getElementById('detailTitle').innerText = customData.name || alb.name;
         document.getElementById('detailSongs').innerText = customData.songs || alb.songs;
         renderLyrics(); detail.style.opacity = 1;
@@ -156,14 +193,13 @@
       db.customScraps.forEach((s, i) => renderOne(s, false, i));
     }
 
-    // 核心修改：实现碎片点击浮起逻辑
+    // 实现碎片点击浮起逻辑
     let maxZIndex = 10;
     function renderOne(s, isInit, idx) {
       const div = document.createElement('div');
       div.className = 'scrap-item group';
       div.style.left = s.x + 'px'; div.style.top = s.y + 'px';
       div.style.transform = `rotate(${Math.random()*10-5}deg)`;
-      // 随机一个 z-index 初始堆叠
       div.style.zIndex = Math.floor(Math.random()*5)+1; 
       
       // 点击浮起
@@ -183,7 +219,7 @@
       const cont = document.getElementById('albumLyricContainer'); cont.innerHTML = '';
       (db.albumLyrics[window.currentId] || []).forEach((l, i) => {
         const d = document.createElement('div'); d.className = 'group border-l pl-4 hover:border-black transition-all relative';
-        // 核心修改：歌词双击可直接编辑
+        // 歌词双击可直接编辑
         d.innerHTML = `
             <p class="italic text-xl" ondblclick="makeEditable(this, 'lyric', ${i})">"${l}"</p>
             <button onclick="delLyric(${i})" class="hidden group-hover:block text-[8px] opacity-30 mt-1 uppercase tracking-widest absolute right-0 top-0">[Delete]</button>
@@ -192,18 +228,16 @@
       });
     }
 
-    // 核心修改：实时双击编辑逻辑
+    // 实时双击编辑文字逻辑
     window.makeEditable = (el, type, index) => {
-        if(!checkAuth(true)) return; // 静默检查权限，不弹窗，除非没有权限
+        if(!checkAuth(true)) return; 
 
         el.contentEditable = true;
         el.focus();
 
-        // 失去焦点时保存
         el.onblur = async () => {
             el.contentEditable = false;
             let newVal = el.innerText.trim();
-            // 歌词需要去掉引号
             if (type === 'lyric') newVal = newVal.replace(/^"|"$/g, ''); 
 
             if(!db.editableAlbums[window.currentId]) db.editableAlbums[window.currentId] = {};
@@ -215,18 +249,16 @@
             await sync();
         };
 
-        // 按下回车键保存
         el.onkeydown = (e) => {
             if(e.key === 'Enter') { e.preventDefault(); el.blur(); }
         };
     };
 
     // --- 核心：管理员逻辑 ---
-    // 增加 silent 参数，决定是否在未验证时弹窗
     const checkAuth = (silent = false) => {
         const saved = localStorage.getItem('is_admin');
         if (saved === MASTER_CODE) return true;
-        if(silent) return false; // 静默模式直接返回 false
+        if(silent) return false; 
 
         const pw = prompt("Identity Verification Required:");
         if (pw === MASTER_CODE) {
@@ -286,7 +318,7 @@
     async function sync() {
       document.getElementById('syncStatus').innerText = "Cloud: Syncing...";
       await _supabase.from('archive_data').upsert({ id: 1, content: db });
-      renderAll();
+      renderAll(); // 重新渲染，使修改生效
       document.getElementById('syncStatus').innerText = "Cloud: Saved";
     }
 
