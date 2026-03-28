@@ -9,17 +9,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200;500;900&display=swap" rel="stylesheet">
   <style>
     body { background-color: #fff; color: #000; font-family: 'Noto Serif SC', serif; overflow-x: hidden; scroll-behavior: smooth; }
-    .star-outline { position: absolute; top: 10%; left: 20%; width: 65vw; opacity: 0.08; z-index: -1; pointer-events: none; transition: transform 0.1s ease-out; }
+    .star-outline { position: absolute; top: 10%; left: 20%; width: 65vw; opacity: 0.08; z-index: -1; pointer-events: none; }
     .album-vertical-list { height: 650px; overflow-y: auto; scrollbar-width: none; perspective: 1000px; padding: 40px 0; }
     .album-item { cursor: pointer; transition: 0.6s cubic-bezier(0.23, 1, 0.32, 1); filter: grayscale(100%); opacity: 0.2; margin-bottom: 40px; position: relative; }
     .album-item.active { filter: grayscale(0%); opacity: 1; transform: translateX(20px) scale(1.05) !important; box-shadow: 20px 20px 60px rgba(0,0,0,0.1); }
-    .album-detail-wrap::before { content: attr(data-index); position: absolute; top: -80px; right: -40px; font-size: 20rem; font-weight: 900; color: rgba(0,0,0,0.03); z-index: -1; pointer-events: none; }
-    .scrapbook-section { position: relative; min-height: 160vh; width: 100%; border-top: 1px solid #eee; background: #fafafa; overflow: hidden; }
+    .album-detail-wrap::before { content: attr(data-index); position: absolute; top: -100px; right: -40px; font-size: 20rem; font-weight: 900; color: rgba(0,0,0,0.03); z-index: -1; pointer-events: none; }
+    .scrapbook-section { position: relative; min-height: 180vh; width: 100%; border-top: 1px solid #eee; background: #fafafa; overflow: hidden; }
     .scrap-item { position: absolute; transition: transform 0.3s, z-index 0.1s; z-index: 10; cursor: grab; }
-    .scrap-item.active-grab { z-index: 100 !important; }
     .delete-mark { position: absolute; bottom: -10px; right: -10px; width: 22px; height: 22px; background: #000; color: #fff; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; z-index: 100; border: 2px solid #fff; }
     .scrap-item:hover .delete-mark { display: flex; }
-    [contenteditable="true"] { border-bottom: 1px dashed rgba(0,0,0,0.3); outline: none; background: rgba(0,0,0,0.02); }
+    [contenteditable="true"] { border-bottom: 1px dashed #ccc; outline: none; background: rgba(0,0,0,0.02); }
     .modal { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.98); z-index: 1000; align-items: center; justify-content: center; }
   </style>
 </head>
@@ -46,7 +45,7 @@
         <p id="detailSongs" class="text-xs opacity-30 mb-10 tracking-widest uppercase" ondblclick="makeEditable(this, 'albumSongs')"></p>
         <div class="flex justify-between items-center border-b border-black mb-6 pb-2">
           <span class="text-[10px] uppercase tracking-widest">Archive Lyrics</span>
-          <button onclick="openModal('albumLyric')" class="text-[10px] underline hover:font-bold">+ Add New</button>
+          <button onclick="openModalWithAuth('albumLyric')" class="text-[10px] underline hover:font-bold">+ Add New</button>
         </div>
         <div id="albumLyricContainer" class="space-y-6"></div>
       </div>
@@ -55,8 +54,8 @@
 
   <section class="scrapbook-section" id="scrapbook">
     <div class="absolute top-10 left-10 z-[100] flex gap-4">
-      <button onclick="openModal('scrapText')" class="bg-black text-white text-[10px] px-6 py-2 uppercase tracking-widest">+ Text</button>
-      <button onclick="openModal('scrapImage')" class="bg-black text-white text-[10px] px-6 py-2 uppercase tracking-widest">+ Image URL</button>
+      <button onclick="openModalWithAuth('scrapText')" class="bg-black text-white text-[10px] px-6 py-2 uppercase tracking-widest">+ Text</button>
+      <button onclick="openModalWithAuth('scrapImage')" class="bg-black text-white text-[10px] px-6 py-2 uppercase tracking-widest">+ Image URL</button>
     </div>
   </section>
 
@@ -85,6 +84,9 @@
     const _supabase = supabase.createClient("https://ykymzuaobitdhoyyqmxp.supabase.co", "sb_publishable_mU8Ivr3GpGOjugg2TxK5Jw_FCRxbtpS");
     const MASTER_CODE = "2026";
     let db = { albumLyrics: {}, customScraps: [], deletedInitials: [], wishes: [], editableAlbums: {} };
+    
+    // 随机署名库
+    const randomNames = ["Soul Ghost", "Blue Mood", "Archive Traveler", "Midnight Listener", "Destiny Finder", "Echo Walker"];
 
     const initialAlbums = [
       { id:1, name: 'EndSerenading (Mineral)', img: 'https://i.ibb.co/7dM4QCx4/IMG-6823.jpg', songs: 'Love Letter / Palisade / Gjs' },
@@ -101,25 +103,28 @@
       document.getElementById('syncStatus').innerText = "Cloud: Connected";
     }
 
+    const checkAuth = () => {
+      if(localStorage.getItem('is_admin') === MASTER_CODE) return true;
+      const pw = prompt("Identity Verification / 请输入暗号:");
+      if(pw === MASTER_CODE) { localStorage.setItem('is_admin', MASTER_CODE); return true; }
+      return false;
+    };
+
+    // 只有主人才能打开的弹窗
+    function openModalWithAuth(mode) {
+      if(checkAuth()) openModal(mode);
+    }
+
     function renderAll() {
-      const listEl = document.getElementById('albumList');
-      listEl.innerHTML = '';
+      const listEl = document.getElementById('albumList'); listEl.innerHTML = '';
       initialAlbums.forEach((alb, idx) => {
         const custom = db.editableAlbums[alb.id] || {};
         const div = document.createElement('div');
         div.className = `album-item ${alb.id===window.currentId?'active':''}`;
         div.innerHTML = `<img src="${custom.img || alb.img}" class="w-full shadow-lg">`;
-        
         let timer = null;
-        div.onclick = () => {
-          clearTimeout(timer);
-          timer = setTimeout(() => { switchAlbum(alb, div); }, 250);
-        };
-        div.ondblclick = () => {
-          clearTimeout(timer);
-          editAlbumCover(alb.id);
-        };
-
+        div.onclick = () => { clearTimeout(timer); timer = setTimeout(() => { switchAlbum(alb, div); }, 250); };
+        div.ondblclick = () => { clearTimeout(timer); editAlbumCover(alb.id); };
         listEl.appendChild(div);
         if(idx===0 && !window.currentId) switchAlbum(alb, div);
       });
@@ -131,7 +136,7 @@
       el.classList.add('active'); window.currentId = alb.id;
       const custom = db.editableAlbums[alb.id] || {};
       const detail = document.getElementById('albumDetail');
-      detail.style.opacity = 0;
+      detail.style.opacity = 0; detail.setAttribute('data-index', '0' + alb.id);
       setTimeout(() => {
         document.getElementById('detailCover').src = custom.img || alb.img;
         document.getElementById('detailTitle').innerText = custom.name || alb.name;
@@ -145,8 +150,7 @@
       const newUrl = prompt("Update Cover Image URL:");
       if(newUrl) {
         if(!db.editableAlbums[id]) db.editableAlbums[id] = {};
-        db.editableAlbums[id].img = newUrl;
-        await sync();
+        db.editableAlbums[id].img = newUrl; await sync();
       }
     };
 
@@ -163,26 +167,13 @@
       };
     };
 
-    const checkAuth = () => {
-      if(localStorage.getItem('is_admin') === MASTER_CODE) return true;
-      const pw = prompt("Identity Verification / 请输入管理暗号:");
-      if(pw === MASTER_CODE) { localStorage.setItem('is_admin', MASTER_CODE); return true; }
-      return false;
-    };
-
-    async function sync() {
-      document.getElementById('syncStatus').innerText = "Cloud: Syncing...";
-      await _supabase.from('archive_data').upsert({ id: 1, content: db });
-      renderAll();
-      document.getElementById('syncStatus').innerText = "Cloud: Saved";
-    }
-
     let maxZ = 100;
     function renderOne(s, isInit, idx) {
       const div = document.createElement('div');
       div.className = 'scrap-item group';
       div.style.left = s.x+'px'; div.style.top = s.y+'px';
       div.style.zIndex = Math.floor(Math.random()*20);
+      div.style.transform = `rotate(${Math.random()*10-5}deg)`;
       div.onmousedown = () => { div.style.zIndex = ++maxZ; };
       div.innerHTML = (s.type==='text'? `<div class="bg-white p-4 shadow-xl border max-w-xs text-xl font-light">${s.content}</div>` : `<img src="${s.content}" class="w-64 shadow-2xl">`) + 
                       `<div class="delete-mark" onclick="del(${isInit}, '${isInit?s.id:idx}')">×</div>`;
@@ -192,12 +183,15 @@
     function renderScraps() {
       document.getElementById('scrapbook').querySelectorAll('.scrap-item').forEach(e=>e.remove());
       const initialScraps = [
-        { id:'s1', type:'text', content:'每次出门都幻想自己会阅读...', x:80, y:200 },
-        { id:'s5', type:'img', content:'https://i.ibb.co/jZvfc09z/IMG-5712.jpg', x:650, y:350 }
+        { id:'s1', type:'text', content:'每次出门都幻想自己会阅读。', x:80, y:200 },
+        { id:'s5', type:'img', content:'https://i.ibb.co/jZvfc09z/IMG-5712.jpg', x:650, y:350 },
+        { id:'s3', type:'text', content:'现在的每一天都只是我的幻觉。', x:120, y:500 },
+        { id:'s7', type:'img', content:'https://i.ibb.co/PskfMxGg/IMG-5116.jpg', x:750, y:850 }
       ];
       initialScraps.forEach(s => { if(!db.deletedInitials.includes(s.id)) renderOne(s, true); });
       db.customScraps.forEach((s, i) => renderOne(s, false, i));
     }
+
     function renderLyrics() {
       const cont = document.getElementById('albumLyricContainer'); cont.innerHTML = '';
       (db.albumLyrics[window.currentId] || []).forEach((l, i) => {
@@ -206,6 +200,7 @@
         cont.appendChild(d);
       });
     }
+
     function renderWishes() {
       const cont = document.getElementById('wishContainer'); cont.innerHTML = '';
       db.wishes.slice().reverse().forEach((w, i) => {
@@ -214,16 +209,32 @@
         cont.appendChild(d);
       });
     }
+
     async function saveContent() {
       const val = document.getElementById('modalInput').value; if(!val) return;
-      if(activeMode === 'wish') db.wishes.push({ content: val, name: 'Soul Ghost', time: new Date().toLocaleString() });
-      else if(activeMode === 'albumLyric') { if(!db.albumLyrics[window.currentId]) db.albumLyrics[window.currentId]=[]; db.albumLyrics[window.currentId].push(val); }
-      else db.customScraps.push({ type: activeMode==='scrapText'?'text':'img', content: val, x: Math.random()*600, y: Math.random()*800+100 });
+      if(activeMode === 'wish') {
+        const randomName = randomNames[Math.floor(Math.random() * randomNames.length)];
+        db.wishes.push({ content: val, name: randomName, time: new Date().toLocaleString() });
+      } else if(activeMode === 'albumLyric') {
+        if(!db.albumLyrics[window.currentId]) db.albumLyrics[window.currentId]=[];
+        db.albumLyrics[window.currentId].push(val);
+      } else {
+        db.customScraps.push({ type: activeMode==='scrapText'?'text':'img', content: val, x: Math.random()*window.innerWidth*0.6, y: Math.random()*window.innerHeight*0.8+200 });
+      }
       await sync(); closeModal();
     }
+
     window.del = async (isInit, key) => { if(!checkAuth()) return; if(isInit) db.deletedInitials.push(key); else db.customScraps.splice(key, 1); await sync(); };
     window.delLyric = async (i) => { if(!checkAuth()) return; db.albumLyrics[window.currentId].splice(i, 1); await sync(); };
     window.delWish = async (i) => { if(!checkAuth()) return; db.wishes.splice(i, 1); await sync(); };
+
+    async function sync() {
+      document.getElementById('syncStatus').innerText = "Cloud: Syncing...";
+      await _supabase.from('archive_data').upsert({ id: 1, content: db });
+      renderAll();
+      document.getElementById('syncStatus').innerText = "Cloud: Saved";
+    }
+
     let activeMode = '';
     function openModal(m) { activeMode = m; document.getElementById('globalModal').style.display = 'flex'; }
     function closeModal() { document.getElementById('globalModal').style.display = 'none'; document.getElementById('modalInput').value = ''; }
