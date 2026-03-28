@@ -19,7 +19,7 @@
     .scrap-item.active-grab { z-index: 100 !important; }
     .delete-mark { position: absolute; bottom: -10px; right: -10px; width: 22px; height: 22px; background: #000; color: #fff; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; z-index: 100; border: 2px solid #fff; }
     .scrap-item:hover .delete-mark { display: flex; }
-    [contenteditable="true"] { border-bottom: 1px dashed rgba(0,0,0,0.2); outline: none; }
+    [contenteditable="true"] { border-bottom: 1px dashed rgba(0,0,0,0.3); outline: none; background: rgba(0,0,0,0.02); }
     .modal { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.98); z-index: 1000; align-items: center; justify-content: center; }
   </style>
 </head>
@@ -91,7 +91,7 @@
       { id:2, name: '我们的灵魂乐 (透明杂志)', img: 'https://i.ibb.co/pB7Wvb7D/IMG-6824.jpg', songs: '永远的等待 / 少女 / 我们的灵魂乐' },
       { id:3, name: '亲爱的…我还不知道 (张悬)', img: 'https://i.ibb.co/pBHns4Yd/IMG-6821.jpg', songs: '关于我爱你 / 信任的样子 / 并不' },
       { id:4, name: '时间的歌 (陈绮贞)', img: 'https://i.ibb.co/whDZddfZ/IMG-6822.jpg', songs: '序曲 / 涟漪 / 柏拉图式的爱情' },
-      { id:5, name: '的士房间 (薄荷叶)', img: 'https://i.ibb.co/4nC6wM7G/IMG-6828.jpg', songs: '的士房间 / 破坏 / 19岁' }
+      { id:5, name: '的士房间 (薄荷叶)', img: 'https://i.ibb.co/mFGz0qmx/IMG-6828.jpg', songs: '的士房间 / 破坏 / 19岁' }
     ];
 
     async function load() {
@@ -110,15 +110,14 @@
         div.className = `album-item ${alb.id===window.currentId?'active':''}`;
         div.innerHTML = `<img src="${custom.img || alb.img}" class="w-full shadow-lg">`;
         
-        // 核心修复：精细控制单击和双击
         let timer = null;
         div.onclick = () => {
           clearTimeout(timer);
-          timer = setTimeout(() => { switchAlbum(alb, div); }, 250); // 单击切换
+          timer = setTimeout(() => { switchAlbum(alb, div); }, 250);
         };
         div.ondblclick = () => {
           clearTimeout(timer);
-          editAlbumCover(alb.id); // 双击编辑
+          editAlbumCover(alb.id);
         };
 
         listEl.appendChild(div);
@@ -143,7 +142,7 @@
 
     window.editAlbumCover = async (id) => {
       if(!checkAuth()) return;
-      const newUrl = prompt("输入新的图片链接:");
+      const newUrl = prompt("Update Cover Image URL:");
       if(newUrl) {
         if(!db.editableAlbums[id]) db.editableAlbums[id] = {};
         db.editableAlbums[id].img = newUrl;
@@ -166,7 +165,7 @@
 
     const checkAuth = () => {
       if(localStorage.getItem('is_admin') === MASTER_CODE) return true;
-      const pw = prompt("输入暗号 (2026):");
+      const pw = prompt("Identity Verification / 请输入管理暗号:");
       if(pw === MASTER_CODE) { localStorage.setItem('is_admin', MASTER_CODE); return true; }
       return false;
     };
@@ -178,7 +177,6 @@
       document.getElementById('syncStatus').innerText = "Cloud: Saved";
     }
 
-    // 碎片区点击浮起逻辑
     let maxZ = 100;
     function renderOne(s, isInit, idx) {
       const div = document.createElement('div');
@@ -191,13 +189,11 @@
       document.getElementById('scrapbook').appendChild(div);
     }
 
-    // 基础功能保持不变
     function renderScraps() {
       document.getElementById('scrapbook').querySelectorAll('.scrap-item').forEach(e=>e.remove());
       const initialScraps = [
         { id:'s1', type:'text', content:'每次出门都幻想自己会阅读...', x:80, y:200 },
         { id:'s5', type:'img', content:'https://i.ibb.co/jZvfc09z/IMG-5712.jpg', x:650, y:350 }
-        // ... 其他初始碎片可自行补充
       ];
       initialScraps.forEach(s => { if(!db.deletedInitials.includes(s.id)) renderOne(s, true); });
       db.customScraps.forEach((s, i) => renderOne(s, false, i));
