@@ -83,7 +83,6 @@
     const MASTER_CODE = "2026";
     let db = { albumLyrics: {}, customScraps: [], deletedInitials: [], wishes: [] };
 
-    // --- 💎 初始内容 ---
     const initialScraps = [
       { id:'s1', type:'text', content:'每次出门都幻想自己会阅读。每次都带着书出门带着没电的手机和没翻开的书。好吧', x:80, y:200 },
       { id:'s2', type:'text', content:'I\'m trying to go on this path But you say I haven\' t get the jests', x:550, y:120 },
@@ -100,7 +99,7 @@
       { id:2, name: '我们的灵魂乐 (透明杂志)', img: 'https://i.ibb.co/pB7Wvb7D/IMG-6824.jpg', songs: '永远的等待 / 少女 / 我们的灵魂乐' },
       { id:3, name: '亲爱的…我还不知道 (张悬)', img: 'https://i.ibb.co/pBHns4Yd/IMG-6821.jpg', songs: '关于我爱你 / 信任的样子 / 并不' },
       { id:4, name: '时间的歌 (陈绮贞)', img: 'https://i.ibb.co/whDZddfZ/IMG-6822.jpg', songs: '序曲 / 涟漪 / 柏拉图式的爱情' },
-      { id:5, name: '的士房间 (薄荷叶)', img: 'https://i.ibb.co/4nC6wM7G/IMG-6828.jpg', songs: '的士房间 / 破坏 / 19岁' }
+      { id:5, name: '的士房间 (薄荷叶)', img: 'https://i.ibb.co/mFGz0qmx/IMG-6828.jpg', songs: '的士房间 / 破坏 / 19岁' }
     ];
 
     async function load() {
@@ -162,24 +161,37 @@
       });
     }
 
+    // --- 核心：管理员逻辑 ---
+    const checkAuth = () => {
+        const saved = localStorage.getItem('is_admin');
+        if (saved === MASTER_CODE) return true;
+        const pw = prompt("Identity Verification Required:");
+        if (pw === MASTER_CODE) {
+            localStorage.setItem('is_admin', MASTER_CODE);
+            return true;
+        }
+        return false;
+    };
+
     function renderWishes() {
       const cont = document.getElementById('wishContainer'); cont.innerHTML = '';
-      db.wishes.slice().reverse().forEach(w => {
-        const d = document.createElement('div'); d.className = 'border-l pl-6 py-2 border-black/10';
-        d.innerHTML = `<p class="text-xl italic">"${w.content}"</p><span class="text-[9px] opacity-20 block mt-2 uppercase">@${w.name} — ${w.time}</span>`;
+      db.wishes.slice().reverse().forEach((w, i) => {
+        const actualIndex = db.wishes.length - 1 - i;
+        const d = document.createElement('div'); 
+        d.className = 'group border-l pl-6 py-2 border-black/10 relative';
+        d.innerHTML = `
+            <p class="text-xl italic">"${w.content}"</p>
+            <span class="text-[9px] opacity-20 block mt-2 uppercase">@${w.name} — ${w.time}</span>
+            <button onclick="delWish(${actualIndex})" class="hidden group-hover:block absolute right-0 top-2 text-[8px] opacity-30 hover:opacity-100 uppercase">[Delete]</button>
+        `;
         cont.appendChild(d);
       });
     }
 
-    let activeMode = '';
-    function openModal(m) { activeMode = m; document.getElementById('globalModal').style.display = 'flex'; }
-    function closeModal() { document.getElementById('globalModal').style.display = 'none'; document.getElementById('modalInput').value = ''; }
-
     async function saveContent() {
       const val = document.getElementById('modalInput').value; if(!val) return;
       if(activeMode !== 'wish') {
-        const pw = prompt("Archive Passcode Required:"); // 这里删掉了 (2026)
-        if(pw !== MASTER_CODE) return alert("暗号不对哦");
+        if(!checkAuth()) return alert("暗号不对哦");
       }
       if(activeMode === 'wish') {
           db.wishes.push({ content: val, name: 'Soul Ghost', time: new Date().toLocaleString() });
@@ -193,16 +205,19 @@
     }
 
     window.del = async (isInit, key) => {
-      const pw = prompt("Identity Verification Required:");
-      if(pw !== MASTER_CODE) return;
+      if(!checkAuth()) return;
       if(isInit) db.deletedInitials.push(key); else db.customScraps.splice(key, 1);
       await sync();
     };
 
     window.delLyric = async (i) => {
-      const pw = prompt("Identity Verification Required:");
-      if(pw !== MASTER_CODE) return;
+      if(!checkAuth()) return;
       db.albumLyrics[window.currentId].splice(i, 1); await sync();
+    };
+
+    window.delWish = async (index) => {
+      if(!checkAuth()) return;
+      db.wishes.splice(index, 1); await sync();
     };
 
     async function sync() {
@@ -216,6 +231,10 @@
       const moveX = (e.clientX-window.innerWidth/2)*-0.01; const moveY = (e.clientY-window.innerHeight/2)*-0.01;
       document.getElementById('bgStar').style.transform = `translate(${moveX}px, ${moveY}px)`;
     });
+
+    let activeMode = '';
+    function openModal(m) { activeMode = m; document.getElementById('globalModal').style.display = 'flex'; }
+    function closeModal() { document.getElementById('globalModal').style.display = 'none'; document.getElementById('modalInput').value = ''; }
 
     load();
   </script>
